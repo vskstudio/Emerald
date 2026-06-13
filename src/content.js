@@ -11,7 +11,33 @@
     hands: [{ cards: [] }],
     activeHand: 0,
     visible: false,
+    auto: false,           // détection automatique (duel.com)
+    autoStatus: '',
   };
+
+  const detector = window.__emeraldDetector;
+
+  function applyDetection(result) {
+    state.dealer = result.dealer[0] || null;
+    state.hands = result.hands.length ? result.hands.map(cards => ({ cards })) : [{ cards: [] }];
+    state.activeHand = 0;
+    state.autoStatus = result.dealer.length + result.hands.flat().length
+      ? `${result.hands.length} main(s) · croupier : ${result.dealer.join(' ') || '?'}`
+      : 'En attente de cartes…';
+    render();
+  }
+
+  function setAuto(on) {
+    state.auto = on;
+    if (on && detector) {
+      state.autoStatus = 'Scan en cours…';
+      detector.start(applyDetection);
+    } else {
+      detector?.stop();
+      state.autoStatus = '';
+    }
+    render();
+  }
 
   let root = null;
 
@@ -54,6 +80,36 @@
     if (!root) return;
     const body = root.querySelector('.em-body');
     body.innerHTML = '';
+
+    // --- Mode auto (détection duel.com) ---
+    if (detector?.supported) {
+      const autoBar = document.createElement('div');
+      autoBar.className = 'em-actions';
+      autoBar.style.marginBottom = '10px';
+      const autoBtn = document.createElement('button');
+      autoBtn.className = 'em-btn' + (state.auto ? '' : ' em-danger');
+      autoBtn.textContent = state.auto ? '🟢 AUTO activé' : '⚪ AUTO désactivé';
+      autoBtn.addEventListener('click', () => setAuto(!state.auto));
+      const scanBtn = document.createElement('button');
+      scanBtn.className = 'em-btn';
+      scanBtn.textContent = '🔍 Scanner';
+      scanBtn.title = 'Surligne les cartes détectées (3 s) et log les détails dans la console';
+      scanBtn.addEventListener('click', () => {
+        const { count } = detector.inspect();
+        state.autoStatus = `${count} carte(s) trouvée(s) — détail dans la console (F12)`;
+        render();
+      });
+      autoBar.appendChild(autoBtn);
+      autoBar.appendChild(scanBtn);
+      body.appendChild(autoBar);
+      if (state.autoStatus) {
+        const st = document.createElement('p');
+        st.className = 'em-section-label';
+        st.style.color = '#4ade80';
+        st.textContent = state.autoStatus;
+        body.appendChild(st);
+      }
+    }
 
     // --- Croupier ---
     const dl = document.createElement('p');

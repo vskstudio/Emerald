@@ -5,7 +5,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['src/overlay.css'] });
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['src/strategy.js', 'src/content.js'],
+      files: ['src/strategy.js', 'src/detector.js', 'src/content.js'],
     });
     await chrome.tabs.sendMessage(tab.id, { type: 'emerald-toggle' });
   } catch (e) {

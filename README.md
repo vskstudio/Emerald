@@ -48,6 +48,19 @@ La logique suit exactement le tableau de stratégie de base intégré (`src/stra
 | R | Rester (Stay) | 🟥 Rouge |
 | P | Partager (Split) | ⬜ Gris |
 
+## 🤖 Détection automatique (duel.com)
+
+Sur **duel.com**, l'extension se charge automatiquement et peut lire les cartes du **Blackjack Original** (jeu maison rendu en DOM) :
+
+1. Ouvrez le Blackjack Original sur duel.com → l'overlay est disponible (icône Emerald)
+2. Activez **🟢 AUTO** : les cartes du croupier et de toutes les mains sont détectées en temps réel (MutationObserver), les recommandations se mettent à jour seules
+3. Bouton **🔍 Scanner** : surligne en vert les cartes détectées pendant 3 s et log le détail dans la console (F12) — utile pour vérifier/calibrer la détection
+4. Si la détection rate (le DOM du site peut changer), repassez en saisie manuelle
+
+> ⚠️ Les tables **live** (Evolution Gaming) sont un flux vidéo : la détection automatique y est impossible — utilisez la saisie manuelle.
+
+Le détecteur (`src/detector.js`) utilise des heuristiques génériques (rang + couleur ♠♥♦♣, classes `dealer`/`player`/`card`, position verticale, regroupement horizontal des mains) — il est donc tolérant aux changements de DOM et adaptable à d'autres casinos "Originals".
+
 ## ⚠️ Avertissement
 
 Cet outil est fourni à titre éducatif. La stratégie de base réduit l'avantage de la maison mais **ne garantit aucun gain**. Jouez de manière responsable.

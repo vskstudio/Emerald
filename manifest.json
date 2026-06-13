@@ -21,6 +21,14 @@
   "background": {
     "service_worker": "src/background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://duel.com/*", "https://*.duel.com/*"],
+      "js": ["src/strategy.js", "src/detector.js", "src/content.js"],
+      "css": ["src/overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
   "web_accessible_resources": [
     {
       "resources": ["icons/icon48.png"],
