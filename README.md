@@ -11,9 +11,9 @@ Tirer · Rester · Doubler · Partager — avec probabilités en temps réel</p>
 
 ## ✨ Fonctionnalités
 
-- **Overlay flottant et déplaçable** par-dessus n'importe quelle table de Blackjack en ligne
+- **Overlay flottant et déplaçable** par-dessus n'importe quelle table de Blackjack en ligne (se charge automatiquement sur duel.com, icône à cliquer ailleurs)
 - **Recommandation instantanée** basée sur le tableau de stratégie de base (totaux durs, mains souples, paires)
-- **Multi-mains** : ajoutez autant de mains que vous en jouez, chaque main a sa propre recommandation
+- **Saisie manuelle ultra-rapide** : un clic pour la carte du croupier, un clic par carte de votre main
 - **Probabilités en direct** (modèle deck infini) :
   - Probabilité que le croupier saute
   - Probabilité de gagner / d'égaliser en restant
@@ -33,9 +33,8 @@ Tirer · Rester · Doubler · Partager — avec probabilités en temps réel</p>
 1. Ouvrez votre table de Blackjack en ligne
 2. Cliquez sur l'icône **Emerald** dans la barre d'outils → l'overlay apparaît
 3. Sélectionnez la **carte visible du croupier**
-4. Ajoutez vos cartes (et celles des autres mains avec **+ Ajouter une main**)
-5. La recommandation et les probabilités se mettent à jour instantanément
-6. **Nouvelle donne** pour repartir à zéro
+4. Ajoutez vos cartes — la recommandation et les probabilités se mettent à jour instantanément
+5. **Nouvelle donne** pour repartir à zéro
 
 ## 📊 Stratégie
 
@@ -47,19 +46,6 @@ La logique suit exactement le tableau de stratégie de base intégré (`src/stra
 | D | Doubler (Double) | 🟦 Bleu |
 | R | Rester (Stay) | 🟥 Rouge |
 | P | Partager (Split) | ⬜ Gris |
-
-## 🤖 Détection automatique (duel.com)
-
-Sur **duel.com**, l'extension se charge automatiquement et peut lire les cartes du **Blackjack Original** (jeu maison rendu en DOM) :
-
-1. Ouvrez le Blackjack Original sur duel.com → l'overlay est disponible (icône Emerald)
-2. Activez **🟢 AUTO** : les cartes du croupier et de toutes les mains sont détectées en temps réel (MutationObserver), les recommandations se mettent à jour seules
-3. Bouton **🔍 Scanner** : surligne en vert les cartes détectées pendant 3 s et log le détail dans la console (F12) — utile pour vérifier/calibrer la détection
-4. Si la détection rate (le DOM du site peut changer), repassez en saisie manuelle
-
-> ⚠️ Les tables **live** (Evolution Gaming) sont un flux vidéo : la détection automatique y est impossible — utilisez la saisie manuelle.
-
-Le détecteur (`src/detector.js`) utilise des heuristiques génériques (rang + couleur ♠♥♦♣, classes `dealer`/`player`/`card`, position verticale, regroupement horizontal des mains) — il est donc tolérant aux changements de DOM et adaptable à d'autres casinos "Originals".
 
 ## ⚠️ Avertissement
 

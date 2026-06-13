@@ -1,70 +1,17 @@
-// Emerald — Overlay calculateur de stratégie Blackjack
+// Emerald — Overlay calculateur de stratégie Blackjack (saisie manuelle, une main)
 (() => {
   if (window.__emeraldLoaded) return;
   window.__emeraldLoaded = true;
-  // L'overlay ne vit que dans la page principale ; dans les iframes (jeu live),
-  // seul detector.js travaille et relaie via postMessage.
   if (window !== window.top) return;
 
   const S = window.EmeraldStrategy;
   const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
   const state = {
-    dealer: null,          // carte visible du croupier
-    hands: [{ cards: [] }],
-    activeHand: 0,
+    dealer: null,   // carte visible du croupier
+    cards: [],      // ma main
     visible: false,
-    auto: false,           // détection automatique (duel.com)
-    autoStatus: '',
   };
-
-  const detector = window.__emeraldDetector;
-
-  function applyDetection(result) {
-    state.dealer = result.dealer?.[0] || null;
-    if (result.mode === 'live' && result.totals?.length) {
-      // Table live (repli DOM) : on n'a que les totaux affichés par le provider
-      state.hands = result.totals.slice(0, 7).map(t => ({ cards: [], total: t.total, soft: t.soft }));
-      state.autoStatus = `LIVE · ${result.totals.length} main(s) · croupier : ${state.dealer || '?'}`;
-    } else {
-      state.hands = result.hands?.length ? result.hands.slice(0, 7).map(cards => ({ cards })) : [{ cards: [] }];
-      const tag = result.mode === 'ws' ? 'LIVE (WebSocket) · ' : '';
-      state.autoStatus = (result.dealer?.length || 0) + (result.hands?.flat().length || 0)
-        ? `${tag}${state.hands.length} main(s) · croupier : ${result.dealer.join(' ') || '?'}`
-        : 'En attente de cartes…';
-    }
-    state.activeHand = 0;
-    render();
-  }
-
-  // Résultats relayés par les iframes (tables live cross-origin)
-  window.addEventListener('message', e => {
-    if (!e.data?.__emerald) return;
-    if (e.data.inspectCount !== undefined) {
-      state.autoStatus = `${e.data.inspectCount} élément(s) détecté(s) dans l'iframe du jeu — console (F12)`;
-      render();
-      return;
-    }
-    if (state.auto && e.data.result) applyDetection(e.data.result);
-  });
-
-  function broadcastToFrames(msg) {
-    for (let i = 0; i < window.frames.length; i++) {
-      try { window.frames[i].postMessage(msg, '*'); } catch (e) { /* cross-origin ok avec * */ }
-    }
-  }
-
-  function setAuto(on) {
-    state.auto = on;
-    if (on && detector) {
-      state.autoStatus = 'Scan en cours…';
-      detector.start(applyDetection);
-    } else {
-      detector?.stop();
-      state.autoStatus = '';
-    }
-    render();
-  }
 
   let root = null;
 
@@ -108,37 +55,6 @@
     const body = root.querySelector('.em-body');
     body.innerHTML = '';
 
-    // --- Mode auto (détection duel.com) ---
-    if (detector?.supported) {
-      const autoBar = document.createElement('div');
-      autoBar.className = 'em-actions';
-      autoBar.style.marginBottom = '10px';
-      const autoBtn = document.createElement('button');
-      autoBtn.className = 'em-btn' + (state.auto ? '' : ' em-danger');
-      autoBtn.textContent = state.auto ? '🟢 AUTO activé' : '⚪ AUTO désactivé';
-      autoBtn.addEventListener('click', () => setAuto(!state.auto));
-      const scanBtn = document.createElement('button');
-      scanBtn.className = 'em-btn';
-      scanBtn.textContent = '🔍 Scanner';
-      scanBtn.title = 'Surligne les cartes détectées (3 s) et log les détails dans la console';
-      scanBtn.addEventListener('click', () => {
-        const { count } = detector.inspect();
-        broadcastToFrames({ __emeraldCmd: 'inspect' });
-        state.autoStatus = `${count} élément(s) dans la page — scan des iframes lancé, détail console (F12)`;
-        render();
-      });
-      autoBar.appendChild(autoBtn);
-      autoBar.appendChild(scanBtn);
-      body.appendChild(autoBar);
-      if (state.autoStatus) {
-        const st = document.createElement('p');
-        st.className = 'em-section-label';
-        st.style.color = '#4ade80';
-        st.textContent = state.autoStatus;
-        body.appendChild(st);
-      }
-    }
-
     // --- Croupier ---
     const dl = document.createElement('p');
     dl.className = 'em-section-label';
@@ -146,126 +62,93 @@
     body.appendChild(dl);
     body.appendChild(cardPicker(r => { state.dealer = state.dealer === r ? null : r; render(); }, state.dealer));
 
-    // --- Mains ---
-    state.hands.forEach((hand, i) => {
-      const div = document.createElement('div');
-      div.className = 'em-hand' + (i === state.activeHand ? ' em-active' : '');
+    // --- Ma main ---
+    const div = document.createElement('div');
+    div.className = 'em-hand em-active';
 
-      const top = document.createElement('div');
-      top.className = 'em-hand-top';
-      const name = document.createElement('span');
-      name.className = 'em-hand-name';
-      name.textContent = state.hands.length > 1 ? `Main ${i + 1}` : 'Ma main';
-      name.addEventListener('click', () => { state.activeHand = i; render(); });
-      top.appendChild(name);
+    const top = document.createElement('div');
+    top.className = 'em-hand-top';
+    const name = document.createElement('span');
+    name.className = 'em-hand-name';
+    name.textContent = 'Ma main';
+    top.appendChild(name);
 
-      const ev = hand.cards.length ? S.evaluateHand(hand.cards)
-        : hand.total ? { total: hand.total, soft: !!hand.soft, bust: hand.total > 21 } : null;
-      if (ev) {
-        const tot = document.createElement('span');
-        tot.className = 'em-total';
-        tot.textContent = `Total : ${ev.total}${ev.soft && !ev.bust ? ' (soft)' : ''}`;
-        top.appendChild(tot);
-      }
-      if (state.hands.length > 1) {
-        const del = document.createElement('button');
-        del.className = 'em-btn-icon';
-        del.textContent = '✕';
-        del.title = 'Supprimer cette main';
-        del.addEventListener('click', () => {
-          state.hands.splice(i, 1);
-          state.activeHand = Math.min(state.activeHand, state.hands.length - 1);
-          render();
-        });
-        top.appendChild(del);
-      }
-      div.appendChild(top);
+    if (state.cards.length) {
+      const ev = S.evaluateHand(state.cards);
+      const tot = document.createElement('span');
+      tot.className = 'em-total';
+      tot.textContent = `Total : ${ev.total}${ev.soft && !ev.bust ? ' (soft)' : ''}`;
+      top.appendChild(tot);
+    }
+    div.appendChild(top);
 
-      const cardsRow = document.createElement('div');
-      cardsRow.className = 'em-hand-cards';
-      hand.cards.forEach((c, ci) => {
-        const chip = document.createElement('span');
-        chip.className = 'em-chip';
-        chip.textContent = c;
-        chip.title = 'Cliquer pour retirer';
-        chip.addEventListener('click', () => { hand.cards.splice(ci, 1); render(); });
-        cardsRow.appendChild(chip);
-      });
-      div.appendChild(cardsRow);
-
-      if (i === state.activeHand) {
-        div.appendChild(cardPicker(r => { hand.cards.push(r); render(); }));
-      }
-
-      // Recommandation + probabilités
-      const canDecide = (hand.cards.length >= 2 || hand.total) && state.dealer;
-      if (canDecide) {
-        const res = hand.cards.length >= 2
-          ? S.decide(hand.cards, state.dealer)
-          : S.decideFromTotal(hand.total, !!hand.soft, state.dealer);
-        const reco = document.createElement('div');
-        reco.className = 'em-reco';
-        if (res.code === 'BJ') {
-          reco.classList.add('em-bj');
-          reco.textContent = '★ BLACKJACK ★';
-        } else if (res.code === 'BUST') {
-          reco.classList.add('em-bust');
-          reco.textContent = 'SAUTÉ (' + res.hand.total + ')';
-        } else {
-          const a = S.ACTION_LABELS[res.code];
-          reco.style.background = a.color;
-          reco.textContent = `${a.label} (${a.en})`;
-        }
-        div.appendChild(reco);
-
-        if (res.code !== 'BJ' && res.code !== 'BUST') {
-          const handRef = hand.cards.length >= 2 ? hand.cards : { total: hand.total, soft: !!hand.soft };
-          const d = S.dealerOutcomes(state.dealer);
-          const stand = S.standOutcome(handRef, state.dealer);
-          const bustHit = S.playerBustOnHit(handRef);
-          const probs = document.createElement('div');
-          probs.className = 'em-probs';
-          const rows = [
-            ['Croupier saute', d.bust, '#2e9e4f'],
-            ['Gain si je reste', stand.win, '#4ade80'],
-            ['Égalité si je reste', stand.push, '#8a8f98'],
-            ['Je saute si je tire', bustHit, '#d0392e'],
-          ];
-          for (const [label, val, color] of rows) {
-            const r = document.createElement('div');
-            r.className = 'em-prob-row';
-            r.innerHTML = `<span class="em-prob-label">${label}</span>
-              <span class="em-prob-bar"><span class="em-prob-fill" style="width:${val * 100}%;background:${color}"></span></span>
-              <span class="em-prob-val">${pct(val)}</span>`;
-            probs.appendChild(r);
-          }
-          div.appendChild(probs);
-        }
-      }
-      body.appendChild(div);
+    const cardsRow = document.createElement('div');
+    cardsRow.className = 'em-hand-cards';
+    state.cards.forEach((c, ci) => {
+      const chip = document.createElement('span');
+      chip.className = 'em-chip';
+      chip.textContent = c;
+      chip.title = 'Cliquer pour retirer';
+      chip.addEventListener('click', () => { state.cards.splice(ci, 1); render(); });
+      cardsRow.appendChild(chip);
     });
+    div.appendChild(cardsRow);
+    div.appendChild(cardPicker(r => { state.cards.push(r); render(); }));
+
+    // --- Recommandation + probabilités ---
+    if (state.cards.length >= 2 && state.dealer) {
+      const res = S.decide(state.cards, state.dealer);
+      const reco = document.createElement('div');
+      reco.className = 'em-reco';
+      if (res.code === 'BJ') {
+        reco.classList.add('em-bj');
+        reco.textContent = '★ BLACKJACK ★';
+      } else if (res.code === 'BUST') {
+        reco.classList.add('em-bust');
+        reco.textContent = 'SAUTÉ (' + res.hand.total + ')';
+      } else {
+        const a = S.ACTION_LABELS[res.code];
+        reco.style.background = a.color;
+        reco.textContent = `${a.label} (${a.en})`;
+      }
+      div.appendChild(reco);
+
+      if (res.code !== 'BJ' && res.code !== 'BUST') {
+        const d = S.dealerOutcomes(state.dealer);
+        const stand = S.standOutcome(state.cards, state.dealer);
+        const bustHit = S.playerBustOnHit(state.cards);
+        const probs = document.createElement('div');
+        probs.className = 'em-probs';
+        const rows = [
+          ['Croupier saute', d.bust, '#2e9e4f'],
+          ['Gain si je reste', stand.win, '#4ade80'],
+          ['Égalité si je reste', stand.push, '#8a8f98'],
+          ['Je saute si je tire', bustHit, '#d0392e'],
+        ];
+        for (const [label, val, color] of rows) {
+          const r = document.createElement('div');
+          r.className = 'em-prob-row';
+          r.innerHTML = `<span class="em-prob-label">${label}</span>
+            <span class="em-prob-bar"><span class="em-prob-fill" style="width:${val * 100}%;background:${color}"></span></span>
+            <span class="em-prob-val">${pct(val)}</span>`;
+          probs.appendChild(r);
+        }
+        div.appendChild(probs);
+      }
+    }
+    body.appendChild(div);
 
     // --- Actions ---
     const actions = document.createElement('div');
     actions.className = 'em-actions';
-    const addHand = document.createElement('button');
-    addHand.className = 'em-btn';
-    addHand.textContent = '+ Ajouter une main';
-    addHand.addEventListener('click', () => {
-      state.hands.push({ cards: [] });
-      state.activeHand = state.hands.length - 1;
-      render();
-    });
     const reset = document.createElement('button');
     reset.className = 'em-btn em-danger';
     reset.textContent = 'Nouvelle donne';
     reset.addEventListener('click', () => {
       state.dealer = null;
-      state.hands = [{ cards: [] }];
-      state.activeHand = 0;
+      state.cards = [];
       render();
     });
-    actions.appendChild(addHand);
     actions.appendChild(reset);
     body.appendChild(actions);
   }
