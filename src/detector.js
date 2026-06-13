@@ -308,7 +308,7 @@
     const result = buildResult();
     // JSON.stringify pour tout afficher en clair (la console replie les objets)
     console.log(
-      `[Emerald] frame=${(location.href || '').slice(0, 80)}\n` +
+      `[Emerald v${(typeof chrome !== 'undefined' && chrome.runtime?.getManifest?.()?.version) || '?'}] frame=${(location.href || '').slice(0, 80)}\n` +
       `cartes : ${JSON.stringify(cards.map(c => ({ rank: c.rank, zone: c.zone || 'position', class: c.el.className?.toString().slice(0, 60), parent: c.el.parentElement?.className?.toString().slice(0, 60) })), null, 1)}\n` +
       `totaux : ${JSON.stringify(totals.map(t => ({ total: t.total, soft: t.soft, txt: t.el.textContent.trim().slice(0, 12), sig: t.sig.replace(/\s+/g, ' ').trim().slice(0, 120) })), null, 1)}\n` +
       `WS : wrap=${wsMeta.ready} socketsAprèsWrap=${wsMeta.opened} urls=${JSON.stringify(wsMeta.urls)}\n` +
