@@ -1,0 +1,181 @@
+/* Emerald — Overlay Blackjack */
+#emerald-overlay {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  width: 340px;
+  z-index: 2147483647;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: #e8ece9;
+  background: linear-gradient(160deg, rgba(10, 18, 14, 0.96), rgba(6, 10, 8, 0.96));
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(46, 204, 113, 0.12);
+  backdrop-filter: blur(8px);
+  user-select: none;
+  overflow: hidden;
+}
+#emerald-overlay * { box-sizing: border-box; }
+
+.em-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: grab;
+  background: linear-gradient(90deg, rgba(46, 204, 113, 0.12), transparent);
+  border-bottom: 1px solid rgba(46, 204, 113, 0.2);
+}
+.em-header img { width: 22px; height: 22px; }
+.em-title {
+  font-weight: 700;
+  letter-spacing: 2px;
+  font-size: 14px;
+  color: #4ade80;
+  flex: 1;
+}
+.em-btn-icon {
+  background: none;
+  border: none;
+  color: #9fb3a8;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.em-btn-icon:hover { background: rgba(46, 204, 113, 0.15); color: #4ade80; }
+
+.em-body { padding: 12px; }
+.em-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #7d9486;
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+/* Sélecteur de cartes */
+.em-cards-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.em-card-btn {
+  width: 28px;
+  height: 36px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #14201a;
+  color: #e8ece9;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.em-card-btn:hover {
+  border-color: #4ade80;
+  background: #1c2f24;
+  transform: translateY(-2px);
+}
+.em-card-btn.em-selected {
+  background: #2e9e4f;
+  border-color: #4ade80;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+}
+
+/* Mains */
+.em-hand {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.em-hand.em-active { border-color: rgba(74, 222, 128, 0.55); box-shadow: 0 0 12px rgba(46, 204, 113, 0.15); }
+.em-hand-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.em-hand-name { font-weight: 600; color: #c9d6cd; flex: 1; cursor: pointer; }
+.em-hand-cards { display: flex; gap: 4px; flex-wrap: wrap; min-height: 30px; }
+.em-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 30px;
+  padding: 0 5px;
+  background: #f5f5f0;
+  color: #111;
+  font-weight: 800;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+.em-chip:hover { background: #ffb4b4; }
+.em-chip.em-dealer-chip { background: #ffd76a; }
+.em-total { font-size: 12px; color: #9fb3a8; margin-left: 4px; align-self: center; }
+
+/* Recommandation */
+.em-reco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  animation: em-pop 0.25s ease;
+}
+@keyframes em-pop { from { transform: scale(0.92); opacity: 0.5; } to { transform: scale(1); opacity: 1; } }
+
+/* Barres de probabilité */
+.em-probs { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+.em-prob-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.em-prob-label { width: 120px; color: #9fb3a8; }
+.em-prob-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.em-prob-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.em-prob-val { width: 38px; text-align: right; font-weight: 700; color: #e8ece9; }
+
+.em-actions { display: flex; gap: 6px; margin-top: 4px; }
+.em-btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(46, 204, 113, 0.35);
+  background: rgba(46, 204, 113, 0.1);
+  color: #4ade80;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.em-btn:hover { background: rgba(46, 204, 113, 0.22); }
+.em-btn.em-danger { border-color: rgba(208, 57, 46, 0.4); background: rgba(208, 57, 46, 0.1); color: #ff8a80; }
+.em-btn.em-danger:hover { background: rgba(208, 57, 46, 0.22); }
+
+.em-footer {
+  padding: 6px 12px 10px;
+  font-size: 10px;
+  color: #5d7064;
+  text-align: center;
+}
+.em-collapsed .em-body, .em-collapsed .em-footer { display: none; }
+.em-bj { background: linear-gradient(90deg, #d4af37, #f5d76e); color: #1a1a1a !important; text-shadow: none; }
+.em-bust { background: #5a1f1a; }
