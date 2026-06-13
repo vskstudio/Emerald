@@ -8,9 +8,15 @@
 
   const INTERESTING = /card|dealer|hand|seat|score|total|blackjack/i;
   const OrigWS = window.WebSocket;
+  let opened = 0;
+
+  // Signale que le wrap est en place (diagnostic : socket ouvert avant/après)
+  try { window.postMessage({ __emeraldWSMeta: { ready: true, opened } }, '*'); } catch (e) { /* */ }
 
   function WrappedWS(...args) {
     const ws = new OrigWS(...args);
+    opened++;
+    try { window.postMessage({ __emeraldWSMeta: { opened, url: String(args[0]).slice(0, 120) } }, '*'); } catch (e) { /* */ }
     ws.addEventListener('message', (e) => {
       try {
         if (typeof e.data === 'string' && e.data.length < 200000 && INTERESTING.test(e.data)) {

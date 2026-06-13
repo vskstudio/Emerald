@@ -244,6 +244,16 @@
     else { try { window.top.postMessage({ __emerald: true, result }, '*'); } catch (e) { /* ignore */ } }
   }
 
+  // Diagnostic sniffer : combien de sockets ouverts APRÈS la pose du wrap
+  const wsMeta = { ready: false, opened: 0, urls: [] };
+  window.addEventListener('message', (e) => {
+    if ((e.source && e.source !== window) || !e.data?.__emeraldWSMeta) return;
+    const m = e.data.__emeraldWSMeta;
+    if (m.ready) wsMeta.ready = true;
+    if (m.opened) wsMeta.opened = m.opened;
+    if (m.url && !wsMeta.urls.includes(m.url)) wsMeta.urls.push(m.url);
+  });
+
   // Messages du sniffer (monde MAIN) — chaque frame écoute le sien
   window.addEventListener('message', (e) => {
     if ((e.source && e.source !== window) || !e.data?.__emeraldWS) return;
@@ -296,11 +306,15 @@
       setTimeout(() => { t.el.style.outline = ''; }, 3000);
     }
     const result = buildResult();
-    console.log(`[Emerald] frame=${(location.href || '').slice(0, 80)}`,
-      '\ncartes :', cards.map(c => ({ rank: c.rank, zone: c.zone || 'position', class: c.el.className?.toString().slice(0, 80) })),
-      '\ntotaux :', totals.map(t => ({ total: t.total, soft: t.soft, sig: t.sig.trim().slice(0, 80) })),
-      '\nWS échantillons :', wsSamples,
-      '\n→', result);
+    // JSON.stringify pour tout afficher en clair (la console replie les objets)
+    console.log(
+      `[Emerald] frame=${(location.href || '').slice(0, 80)}\n` +
+      `cartes : ${JSON.stringify(cards.map(c => ({ rank: c.rank, zone: c.zone || 'position', class: c.el.className?.toString().slice(0, 60), parent: c.el.parentElement?.className?.toString().slice(0, 60) })), null, 1)}\n` +
+      `totaux : ${JSON.stringify(totals.map(t => ({ total: t.total, soft: t.soft, txt: t.el.textContent.trim().slice(0, 12), sig: t.sig.replace(/\s+/g, ' ').trim().slice(0, 120) })), null, 1)}\n` +
+      `WS : wrap=${wsMeta.ready} socketsAprèsWrap=${wsMeta.opened} urls=${JSON.stringify(wsMeta.urls)}\n` +
+      `WS échantillons (${wsSamples.length}) : ${JSON.stringify(wsSamples.map(s => ({ url: s.url, sample: s.sample.slice(0, 400) })), null, 1)}\n` +
+      `→ ${JSON.stringify(result)}`
+    );
     return { count: cards.length + totals.length + wsSamples.length, result };
   }
 
