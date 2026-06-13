@@ -4,52 +4,83 @@
 
 <h1 align="center">Emerald</h1>
 
-<p align="center"><b>Overlay visuel de stratégie Blackjack pour navigateur</b><br>
-Tirer · Rester · Doubler · Partager — avec probabilités en temps réel</p>
+<p align="center">
+  <b>A blackjack basic-strategy overlay for the browser.</b><br>
+  Real-time Hit / Stand / Double / Split guidance with live probabilities.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/manifest-v3-2e9e4f" alt="Manifest V3">
+  <img src="https://img.shields.io/badge/license-MIT-4ade80" alt="MIT License">
+</p>
 
 ---
 
-## ✨ Fonctionnalités
+## Overview
 
-- **Overlay flottant et déplaçable** par-dessus n'importe quelle table de Blackjack en ligne (se charge automatiquement sur duel.com, icône à cliquer ailleurs)
-- **Recommandation instantanée** basée sur le tableau de stratégie de base (totaux durs, mains souples, paires)
-- **Saisie manuelle ultra-rapide** : un clic pour la carte du croupier, un clic par carte de votre main
-- **Probabilités en direct** (modèle deck infini) :
-  - Probabilité que le croupier saute
-  - Probabilité de gagner / d'égaliser en restant
-  - Probabilité de sauter si vous tirez
-- **Détection Blackjack et bust** automatique
-- Thème sombre émeraude, code couleur identique au tableau (vert = Tirer, bleu = Doubler, rouge = Rester, gris = Partager)
+Emerald is a lightweight Chrome (Manifest V3) extension that displays a draggable, on-screen overlay while you play blackjack. For any combination of your hand and the dealer's up-card, it shows the mathematically optimal basic-strategy decision and the underlying win, push, and bust probabilities — so you can see not just *what* to do, but *why*.
 
-## 🚀 Installation
+The strategy engine is a faithful implementation of a standard basic-strategy chart, covering hard totals, soft totals, and pairs.
 
-1. Clonez ce repo : `git clone https://github.com/vskstudio/Emerald.git`
-2. Ouvrez `chrome://extensions` dans Chrome (ou Edge/Brave)
-3. Activez le **Mode développeur** (en haut à droite)
-4. Cliquez sur **Charger l'extension non empaquetée** et sélectionnez le dossier `Emerald`
+## Features
 
-## 🎮 Utilisation
+- **Floating, draggable overlay** that sits on top of any online blackjack table. It loads automatically on duel.com and can be toggled from the toolbar icon anywhere else.
+- **Instant recommendations** derived from the built-in basic-strategy chart (hard totals, soft totals, and pairs).
+- **Fast manual entry** — one click to set the dealer's up-card, one click per card in your hand.
+- **Live probabilities** computed with an infinite-deck model:
+  - Probability the dealer busts
+  - Probability of winning or pushing if you stand
+  - Probability of busting if you hit
+- **Automatic blackjack and bust detection.**
+- **Emerald dark theme** with chart-matching color codes: green (Hit), blue (Double), red (Stand), gray (Split).
 
-1. Ouvrez votre table de Blackjack en ligne
-2. Cliquez sur l'icône **Emerald** dans la barre d'outils → l'overlay apparaît
-3. Sélectionnez la **carte visible du croupier**
-4. Ajoutez vos cartes — la recommandation et les probabilités se mettent à jour instantanément
-5. **Nouvelle donne** pour repartir à zéro
+## Installation
 
-## 📊 Stratégie
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/vskstudio/Emerald.git
+   ```
+2. Open `chrome://extensions` in Chrome, Edge, or Brave.
+3. Enable **Developer mode** (top-right toggle).
+4. Click **Load unpacked** and select the `Emerald` directory.
 
-La logique suit exactement le tableau de stratégie de base intégré (`src/strategy.js`) :
+## Usage
 
-| Code | Action | Couleur |
-|------|--------|---------|
-| T | Tirer (Hit) | 🟩 Vert |
-| D | Doubler (Double) | 🟦 Bleu |
-| R | Rester (Stay) | 🟥 Rouge |
-| P | Partager (Split) | ⬜ Gris |
+1. Open your online blackjack table.
+2. Click the **Emerald** toolbar icon to reveal the overlay (it appears automatically on duel.com).
+3. Select the dealer's **up-card**.
+4. Add your cards — the recommendation and probabilities update instantly with each click.
+5. Use **New deal** to reset between hands.
 
-## ⚠️ Avertissement
+## Strategy reference
 
-Cet outil est fourni à titre éducatif. La stratégie de base réduit l'avantage de la maison mais **ne garantit aucun gain**. Jouez de manière responsable.
+The decision logic is implemented in [`src/strategy.js`](src/strategy.js) and recommends one of four actions, color-coded in the overlay:
+
+| Action | Color  |
+| :----- | :----- |
+| Hit    | 🟩 Green |
+| Double | 🟦 Blue  |
+| Stand  | 🟥 Red   |
+| Split  | ⬜ Gray  |
+
+## Project structure
+
+| Path                | Purpose                                              |
+| :------------------ | :--------------------------------------------------- |
+| `manifest.json`     | Extension manifest (Manifest V3)                     |
+| `src/strategy.js`   | Basic-strategy chart and probability calculations    |
+| `src/content.js`    | Overlay UI and interaction logic                     |
+| `src/background.js` | Service worker handling toolbar-triggered injection  |
+| `src/overlay.css`   | Overlay styling                                      |
+| `icons/`            | Extension and overlay icons                          |
+
+## Disclaimer
+
+Emerald is provided for educational purposes only. Basic strategy reduces the house edge but **does not guarantee winnings**. Please gamble responsibly.
+
+## License
+
+Released under the [MIT License](LICENSE).
 
 ---
 
