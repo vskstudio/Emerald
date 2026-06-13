@@ -173,18 +173,96 @@
     return classic;
   }
 
+  // --- Extraction depuis les messages WebSocket (source la plus fiable) ---
+  // Les providers live envoient l'état du jeu en JSON, avec des cartes
+  // encodées "QH", "10S", "AD"… ou {rank,suit}. On cherche récursivement
+  // les objets contenant un tableau de cartes ; le chemin (dealer/seat)
+  // indique à qui appartient la main.
+  const CARD_STR_RE = /^(A|K|Q|J|T|10|[2-9])\s*(?:OF\s*)?[SHDC♠♥♦♣]$/i;
+
+  function toRank(s) {
+    const m = String(s).toUpperCase().match(/^(A|K|Q|J|T|10|[2-9])/);
+    if (!m) return null;
+    return m[1] === 'T' ? '10' : m[1];
+  }
+
+  function cardArrayRanks(arr) {
+    if (!Array.isArray(arr) || !arr.length) return null;
+    // ["QH","10S"] ou [{rank:"Q"},{value:"10",suit:"s"}]
+    const ranks = arr.map(c => {
+      if (typeof c === 'string') return CARD_STR_RE.test(c.trim()) ? toRank(c.trim()) : null;
+      if (c && typeof c === 'object') {
+        const r = c.rank ?? c.value ?? c.face ?? c.card ?? c.name;
+        return r !== undefined && r !== null ? toRank(r) : null;
+      }
+      return null;
+    });
+    return ranks.every(Boolean) ? ranks : null;
+  }
+
+  function wsExtract(raw) {
+    let data;
+    try { data = JSON.parse(raw); } catch (e) { return null; }
+    let dealer = null;
+    const hands = [];
+    (function walk(o, path, depth) {
+      if (!o || typeof o !== 'object' || depth > 12) return;
+      const cardsField = o.cards ?? o.Cards ?? o.cardList;
+      const ranks = cardArrayRanks(cardsField);
+      if (ranks) {
+        const entry = { ranks, score: o.score ?? o.value ?? o.total ?? null };
+        if (/dealer|bank|croupier/i.test(path)) { if (!dealer) dealer = entry; }
+        else hands.push(entry);
+      }
+      for (const k of Object.keys(o)) walk(o[k], path + '.' + k, depth + 1);
+    })(data, '', 0);
+    if (!dealer && !hands.length) return null;
+    return {
+      mode: 'ws',
+      dealer: dealer ? dealer.ranks.slice(0, 1) : [],
+      hands: hands.slice(0, 7).map(h => h.ranks), // 7 sièges max + croupier
+    };
+  }
+
+  // Échantillons WS bruts pour la calibration (Scanner)
+  const wsSamples = [];
+  function rememberSample(url, raw) {
+    wsSamples.push({ url, sample: raw.slice(0, 1500) });
+    if (wsSamples.length > 5) wsSamples.shift();
+  }
+
   let observer = null;
   let debounce = null;
   let onUpdate = null;
   let lastSnapshot = '';
 
-  function scan() {
-    const result = buildResult();
-    if (!result) return;
+  function emit(result) {
     const snap = JSON.stringify(result);
     if (snap === lastSnapshot) return;
     lastSnapshot = snap;
-    onUpdate?.(result);
+    if (window === window.top) onUpdate?.(result);
+    else { try { window.top.postMessage({ __emerald: true, result }, '*'); } catch (e) { /* ignore */ } }
+  }
+
+  // Messages du sniffer (monde MAIN) — chaque frame écoute le sien
+  window.addEventListener('message', (e) => {
+    if ((e.source && e.source !== window) || !e.data?.__emeraldWS) return;
+    const { url, data } = e.data.__emeraldWS;
+    rememberSample(url, data);
+    const result = wsExtract(data);
+    if (result) { wsSeen = true; emit(result); }
+  });
+
+  let wsSeen = false;
+  function scan() {
+    const result = buildResult();
+    if (!result) return;
+    // Dès que le WebSocket fournit l'état du jeu, on ignore les "totaux"
+    // devinés dans le DOM (trop de faux positifs sur les UI live).
+    if (wsSeen && result.mode === 'live') return;
+    if (result.totals) result.totals = result.totals.slice(0, 7);
+    if (result.hands) result.hands = result.hands.slice(0, 7);
+    emit(result);
   }
 
   function start(callback) {
@@ -221,8 +299,9 @@
     console.log(`[Emerald] frame=${(location.href || '').slice(0, 80)}`,
       '\ncartes :', cards.map(c => ({ rank: c.rank, zone: c.zone || 'position', class: c.el.className?.toString().slice(0, 80) })),
       '\ntotaux :', totals.map(t => ({ total: t.total, soft: t.soft, sig: t.sig.trim().slice(0, 80) })),
+      '\nWS échantillons :', wsSamples,
       '\n→', result);
-    return { count: cards.length + totals.length, result };
+    return { count: cards.length + totals.length + wsSamples.length, result };
   }
 
   window.__emeraldDetector = {
@@ -234,9 +313,7 @@
   // Frames enfants (le jeu live tourne dans une iframe cross-origin) :
   // on détecte ici et on relaie les résultats à la page principale.
   if (window !== window.top) {
-    start(result => {
-      try { window.top.postMessage({ __emerald: true, result }, '*'); } catch (e) { /* ignore */ }
-    });
+    start(() => {}); // emit() relaie déjà vers la frame principale
     // Le scanner peut être déclenché depuis la frame principale
     window.addEventListener('message', e => {
       if (e.data?.__emeraldCmd === 'inspect') {

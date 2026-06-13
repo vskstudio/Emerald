@@ -24,6 +24,13 @@
   "content_scripts": [
     {
       "matches": ["https://duel.com/*", "https://*.duel.com/*"],
+      "js": ["src/sniffer.js"],
+      "all_frames": true,
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://duel.com/*", "https://*.duel.com/*"],
       "js": ["src/strategy.js", "src/detector.js", "src/content.js"],
       "css": ["src/overlay.css"],
       "all_frames": true,

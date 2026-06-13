@@ -23,13 +23,14 @@
   function applyDetection(result) {
     state.dealer = result.dealer?.[0] || null;
     if (result.mode === 'live' && result.totals?.length) {
-      // Table live : on n'a que les totaux affichés par le provider
-      state.hands = result.totals.map(t => ({ cards: [], total: t.total, soft: t.soft }));
+      // Table live (repli DOM) : on n'a que les totaux affichés par le provider
+      state.hands = result.totals.slice(0, 7).map(t => ({ cards: [], total: t.total, soft: t.soft }));
       state.autoStatus = `LIVE · ${result.totals.length} main(s) · croupier : ${state.dealer || '?'}`;
     } else {
-      state.hands = result.hands?.length ? result.hands.map(cards => ({ cards })) : [{ cards: [] }];
+      state.hands = result.hands?.length ? result.hands.slice(0, 7).map(cards => ({ cards })) : [{ cards: [] }];
+      const tag = result.mode === 'ws' ? 'LIVE (WebSocket) · ' : '';
       state.autoStatus = (result.dealer?.length || 0) + (result.hands?.flat().length || 0)
-        ? `${result.hands.length} main(s) · croupier : ${result.dealer.join(' ') || '?'}`
+        ? `${tag}${state.hands.length} main(s) · croupier : ${result.dealer.join(' ') || '?'}`
         : 'En attente de cartes…';
     }
     state.activeHand = 0;
