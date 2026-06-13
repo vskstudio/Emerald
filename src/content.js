@@ -2,6 +2,9 @@
 (() => {
   if (window.__emeraldLoaded) return;
   window.__emeraldLoaded = true;
+  // L'overlay ne vit que dans la page principale ; dans les iframes (jeu live),
+  // seul detector.js travaille et relaie via postMessage.
+  if (window !== window.top) return;
 
   const S = window.EmeraldStrategy;
   const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -18,13 +21,36 @@
   const detector = window.__emeraldDetector;
 
   function applyDetection(result) {
-    state.dealer = result.dealer[0] || null;
-    state.hands = result.hands.length ? result.hands.map(cards => ({ cards })) : [{ cards: [] }];
+    state.dealer = result.dealer?.[0] || null;
+    if (result.mode === 'live' && result.totals?.length) {
+      // Table live : on n'a que les totaux affichés par le provider
+      state.hands = result.totals.map(t => ({ cards: [], total: t.total, soft: t.soft }));
+      state.autoStatus = `LIVE · ${result.totals.length} main(s) · croupier : ${state.dealer || '?'}`;
+    } else {
+      state.hands = result.hands?.length ? result.hands.map(cards => ({ cards })) : [{ cards: [] }];
+      state.autoStatus = (result.dealer?.length || 0) + (result.hands?.flat().length || 0)
+        ? `${result.hands.length} main(s) · croupier : ${result.dealer.join(' ') || '?'}`
+        : 'En attente de cartes…';
+    }
     state.activeHand = 0;
-    state.autoStatus = result.dealer.length + result.hands.flat().length
-      ? `${result.hands.length} main(s) · croupier : ${result.dealer.join(' ') || '?'}`
-      : 'En attente de cartes…';
     render();
+  }
+
+  // Résultats relayés par les iframes (tables live cross-origin)
+  window.addEventListener('message', e => {
+    if (!e.data?.__emerald) return;
+    if (e.data.inspectCount !== undefined) {
+      state.autoStatus = `${e.data.inspectCount} élément(s) détecté(s) dans l'iframe du jeu — console (F12)`;
+      render();
+      return;
+    }
+    if (state.auto && e.data.result) applyDetection(e.data.result);
+  });
+
+  function broadcastToFrames(msg) {
+    for (let i = 0; i < window.frames.length; i++) {
+      try { window.frames[i].postMessage(msg, '*'); } catch (e) { /* cross-origin ok avec * */ }
+    }
   }
 
   function setAuto(on) {
@@ -96,7 +122,8 @@
       scanBtn.title = 'Surligne les cartes détectées (3 s) et log les détails dans la console';
       scanBtn.addEventListener('click', () => {
         const { count } = detector.inspect();
-        state.autoStatus = `${count} carte(s) trouvée(s) — détail dans la console (F12)`;
+        broadcastToFrames({ __emeraldCmd: 'inspect' });
+        state.autoStatus = `${count} élément(s) dans la page — scan des iframes lancé, détail console (F12)`;
         render();
       });
       autoBar.appendChild(autoBtn);
@@ -131,7 +158,8 @@
       name.addEventListener('click', () => { state.activeHand = i; render(); });
       top.appendChild(name);
 
-      const ev = hand.cards.length ? S.evaluateHand(hand.cards) : null;
+      const ev = hand.cards.length ? S.evaluateHand(hand.cards)
+        : hand.total ? { total: hand.total, soft: !!hand.soft, bust: hand.total > 21 } : null;
       if (ev) {
         const tot = document.createElement('span');
         tot.className = 'em-total';
@@ -169,8 +197,11 @@
       }
 
       // Recommandation + probabilités
-      if (hand.cards.length >= 2 && state.dealer) {
-        const res = S.decide(hand.cards, state.dealer);
+      const canDecide = (hand.cards.length >= 2 || hand.total) && state.dealer;
+      if (canDecide) {
+        const res = hand.cards.length >= 2
+          ? S.decide(hand.cards, state.dealer)
+          : S.decideFromTotal(hand.total, !!hand.soft, state.dealer);
         const reco = document.createElement('div');
         reco.className = 'em-reco';
         if (res.code === 'BJ') {
@@ -187,9 +218,10 @@
         div.appendChild(reco);
 
         if (res.code !== 'BJ' && res.code !== 'BUST') {
+          const handRef = hand.cards.length >= 2 ? hand.cards : { total: hand.total, soft: !!hand.soft };
           const d = S.dealerOutcomes(state.dealer);
-          const stand = S.standOutcome(hand.cards, state.dealer);
-          const bustHit = S.playerBustOnHit(hand.cards);
+          const stand = S.standOutcome(handRef, state.dealer);
+          const bustHit = S.playerBustOnHit(handRef);
           const probs = document.createElement('div');
           probs.className = 'em-probs';
           const rows = [

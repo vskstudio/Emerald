@@ -94,14 +94,92 @@
     };
   }
 
+  // --- Mode LIVE (tables avec croupière vidéo) ---
+  // Les cartes sont dans le flux vidéo, mais le provider affiche en DOM :
+  // un widget carte croupier (ex: "8" + "♠") et des badges de totaux par
+  // siège ("20", "14", "1/11" = soft, "21"). On lit ces totaux.
+  const TOTAL_RE = /^(\d{1,2})(?:\s*\/\s*(\d{1,2}))?$/;
+
+  function findLiveTotals() {
+    const totals = [];
+    const seen = new Set();
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const txt = node.textContent.trim();
+      const m = TOTAL_RE.exec(txt);
+      if (!m) continue;
+      const lo = parseInt(m[1], 10);
+      const hi = m[2] ? parseInt(m[2], 10) : null;
+      // Un total plausible : 4..26 ; un soft "x/y" avec y = x+10
+      if (hi !== null && hi !== lo + 10) continue;
+      const val = hi || lo;
+      if (val < 4 || val > 26) continue;
+      const el = node.parentElement;
+      if (!el || el.closest('#emerald-overlay')) continue;
+      const rect = el.getBoundingClientRect();
+      // Badge compact (pas un montant de mise, pas un gros bloc)
+      if (rect.width < 8 || rect.width > 90 || rect.height < 8 || rect.height > 60) continue;
+      const sig = collectAncestorSig(el);
+      // Exclut mises, soldes, horloges… et les rangs affichés dans une carte
+      if (/bet|stake|balance|chip|amount|currency|timer|clock|history|card/i.test(sig)) continue;
+      const key = `${txt}@${Math.round(rect.left)},${Math.round(rect.top)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      totals.push({ total: val, soft: hi !== null, rect, el, sig });
+    }
+    totals.sort((a, b) => a.rect.left - b.rect.left);
+    return totals;
+  }
+
+  function collectAncestorSig(el, depth = 8) {
+    let sig = '';
+    let a = el;
+    for (let i = 0; i < depth && a; i++) {
+      sig += ` ${a.className || ''} ${a.id || ''} ${a.getAttribute?.('data-role') || ''} ${a.getAttribute?.('data-testid') || ''}`;
+      a = a.parentElement;
+    }
+    return sig;
+  }
+
+  // Carte croupier en mode live : carte DOM détectée dans une zone "dealer",
+  // ou à défaut la carte la plus haute / la plus isolée de l'écran.
+  function liveDealerCard(cards) {
+    if (!cards.length) return null;
+    const tagged = cards.find(c => {
+      const sig = collectAncestorSig(c.el);
+      return DEALER_HINT.test(sig);
+    });
+    if (tagged) return tagged.rank;
+    // Repli : carte la plus haute à l'écran
+    return cards.slice().sort((a, b) => a.rect.top - b.rect.top)[0].rank;
+  }
+
+  function buildResult() {
+    const cards = findCardElements();
+    const classic = classify(cards);
+    // Mode classique : on a des mains complètes en cartes
+    if (classic && classic.hands.flat().length >= 2) return { mode: 'cards', ...classic };
+    // Mode live : carte croupier + totaux
+    const totals = findLiveTotals();
+    if (cards.length || totals.length) {
+      return {
+        mode: 'live',
+        dealer: cards.length ? [liveDealerCard(cards)] : (classic?.dealer ?? []),
+        hands: [],
+        totals: totals.map(t => ({ total: t.total, soft: t.soft })),
+      };
+    }
+    return classic;
+  }
+
   let observer = null;
   let debounce = null;
   let onUpdate = null;
   let lastSnapshot = '';
 
   function scan() {
-    const cards = findCardElements();
-    const result = classify(cards);
+    const result = buildResult();
     if (!result) return;
     const snap = JSON.stringify(result);
     if (snap === lastSnapshot) return;
@@ -126,20 +204,45 @@
     lastSnapshot = '';
   }
 
-  // Mode calibration : surligne les cartes détectées pendant 3 s et log le détail
+  // Mode calibration : surligne cartes (vert) et totaux (orange) 3 s, log le détail
   function inspect() {
     const cards = findCardElements();
+    const totals = findLiveTotals();
     for (const c of cards) {
       c.el.style.outline = '3px solid #4ade80';
       c.el.style.outlineOffset = '2px';
       setTimeout(() => { c.el.style.outline = ''; }, 3000);
     }
-    const result = classify(cards);
-    console.log('[Emerald] Cartes détectées :', cards.map(c => ({
-      rank: c.rank, zone: c.zone || 'position', class: c.el.className?.toString().slice(0, 80),
-    })), '→', result);
-    return { count: cards.length, result };
+    for (const t of totals) {
+      t.el.style.outline = '3px solid #f59e0b';
+      setTimeout(() => { t.el.style.outline = ''; }, 3000);
+    }
+    const result = buildResult();
+    console.log(`[Emerald] frame=${(location.href || '').slice(0, 80)}`,
+      '\ncartes :', cards.map(c => ({ rank: c.rank, zone: c.zone || 'position', class: c.el.className?.toString().slice(0, 80) })),
+      '\ntotaux :', totals.map(t => ({ total: t.total, soft: t.soft, sig: t.sig.trim().slice(0, 80) })),
+      '\n→', result);
+    return { count: cards.length + totals.length, result };
   }
 
-  window.__emeraldDetector = { start, stop, scan, inspect, supported: /(^|\.)duel\.com$/.test(location.hostname) };
+  window.__emeraldDetector = {
+    start, stop, scan, inspect,
+    supported: true, // injecté à la demande -> actif partout où on le charge
+    isTopFrame: window === window.top,
+  };
+
+  // Frames enfants (le jeu live tourne dans une iframe cross-origin) :
+  // on détecte ici et on relaie les résultats à la page principale.
+  if (window !== window.top) {
+    start(result => {
+      try { window.top.postMessage({ __emerald: true, result }, '*'); } catch (e) { /* ignore */ }
+    });
+    // Le scanner peut être déclenché depuis la frame principale
+    window.addEventListener('message', e => {
+      if (e.data?.__emeraldCmd === 'inspect') {
+        const { count } = inspect();
+        try { window.top.postMessage({ __emerald: true, inspectCount: count }, '*'); } catch (err) { /* ignore */ }
+      }
+    });
+  }
 })();

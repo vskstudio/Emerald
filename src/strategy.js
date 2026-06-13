@@ -107,6 +107,25 @@ function decide(cards, dealerCard) {
   return { code, hand };
 }
 
+// Décision à partir d'un simple total (mode live : on ne voit que les totaux).
+// softLow = affichage type "1/11" (As compté 1 ou 11).
+function decideFromTotal(total, soft, dealerCard) {
+  const dealerIdx = DEALER_COLS.indexOf(rankKey(dealerCard));
+  if (dealerIdx === -1 || !total) return null;
+  if (total > 21) return { code: 'BUST', hand: { total, soft } };
+  if (total === 21) return { code: 'R', hand: { total, soft } };
+  let code;
+  if (soft) {
+    const other = total - 11;
+    if (other >= 2 && other <= 10 && SOFT[other]) code = SOFT[other][dealerIdx];
+  }
+  if (!code) {
+    const t = Math.min(Math.max(total, 5), 17);
+    code = HARD[t][dealerIdx];
+  }
+  return { code, hand: { total, soft } };
+}
+
 // --- Probabilités (modèle deck infini : chaque rang 1/13, le 10 compte 4/13) ---
 const RANK_PROBS = [
   ['A', 1 / 13], ['2', 1 / 13], ['3', 1 / 13], ['4', 1 / 13], ['5', 1 / 13],
@@ -143,7 +162,7 @@ function dealerOutcomes(upcard) {
 
 // Probabilité de sauter si le joueur tire une carte
 function playerBustOnHit(cards) {
-  const { total, soft } = evaluateHand(cards);
+  const { total, soft } = Array.isArray(cards) ? evaluateHand(cards) : cards;
   if (total >= 21) return 1;
   let bust = 0;
   for (const [r, rp] of RANK_PROBS) {
@@ -157,7 +176,7 @@ function playerBustOnHit(cards) {
 
 // Probabilité de gagner en restant (le croupier doit sauter ou finir sous notre total)
 function standOutcome(cards, dealerCard) {
-  const { total } = evaluateHand(cards);
+  const { total } = Array.isArray(cards) ? evaluateHand(cards) : cards;
   const d = dealerOutcomes(dealerCard);
   let win = d.bust, push = 0, lose = d.BJ;
   for (const t of [17, 18, 19, 20, 21]) {
@@ -171,6 +190,6 @@ function standOutcome(cards, dealerCard) {
 
 const EmeraldStrategy = {
   DEALER_COLS, ACTION_LABELS, cardValue, rankKey, evaluateHand,
-  decide, dealerOutcomes, playerBustOnHit, standOutcome,
+  decide, decideFromTotal, dealerOutcomes, playerBustOnHit, standOutcome,
 };
 if (typeof window !== 'undefined') window.EmeraldStrategy = EmeraldStrategy;

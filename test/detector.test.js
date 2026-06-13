@@ -39,7 +39,7 @@ global.location = { hostname: 'duel.com' };
 eval(fs.readFileSync(path.join(__dirname, '../src/detector.js'), 'utf8'));
 const { result, count } = window.__emeraldDetector.inspect();
 
-const expected = { dealer: ['K'], hands: [['10', '6'], ['A', '7']] };
+const expected = { mode: 'cards', dealer: ['K'], hands: [['10', '6'], ['A', '7']] };
 const ok = JSON.stringify(result) === JSON.stringify(expected);
 console.log(`Cartes détectées : ${count}`);
 console.log('Résultat :', JSON.stringify(result));
