@@ -123,7 +123,7 @@
           ['Croupier saute', d.bust, '#2e9e4f'],
           ['Gain si je reste', stand.win, '#4ade80'],
           ['Égalité si je reste', stand.push, '#8a8f98'],
-          ['Je saute si je tire', bustHit, '#d0392e'],
+          ['Je saute si je tire', bustHit, '#e07b39'],
         ];
         for (const [label, val, color] of rows) {
           const r = document.createElement('div');
