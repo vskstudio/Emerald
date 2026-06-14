@@ -135,6 +135,17 @@
         }
         div.appendChild(probs);
       }
+    } else {
+      const hint = document.createElement('div');
+      hint.className = 'em-hint';
+      if (!state.dealer && state.cards.length < 2) {
+        hint.textContent = 'Choisis la carte du croupier, puis ajoute au moins 2 cartes à ta main.';
+      } else if (!state.dealer) {
+        hint.textContent = 'Choisis la carte visible du croupier pour obtenir la recommandation.';
+      } else {
+        hint.textContent = 'Ajoute au moins 2 cartes à ta main pour obtenir la recommandation.';
+      }
+      div.appendChild(hint);
     }
     body.appendChild(div);
 
