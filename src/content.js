@@ -37,9 +37,9 @@
     render();
   }
 
-  function cardPicker(onPick, selected) {
+  function cardPicker(onPick, selected, variant) {
     const row = document.createElement('div');
-    row.className = 'em-cards-row';
+    row.className = 'em-cards-row' + (variant ? ' ' + variant : '');
     for (const r of RANKS) {
       const b = document.createElement('button');
       b.className = 'em-card-btn' + (selected === r ? ' em-selected' : '');
@@ -60,7 +60,7 @@
     dl.className = 'em-section-label';
     dl.textContent = 'Carte du croupier';
     body.appendChild(dl);
-    body.appendChild(cardPicker(r => { state.dealer = state.dealer === r ? null : r; render(); }, state.dealer));
+    body.appendChild(cardPicker(r => { state.dealer = state.dealer === r ? null : r; render(); }, state.dealer, 'em-cards-dealer'));
 
     // --- Ma main ---
     const div = document.createElement('div');
@@ -160,15 +160,25 @@
       sx = e.clientX; sy = e.clientY;
       const r = el.getBoundingClientRect();
       ox = r.left; oy = r.top;
+      handle.classList.add('em-dragging');
       e.preventDefault();
     });
     window.addEventListener('mousemove', e => {
       if (!dragging) return;
-      el.style.left = (ox + e.clientX - sx) + 'px';
-      el.style.top = (oy + e.clientY - sy) + 'px';
+      const r = el.getBoundingClientRect();
+      const maxX = window.innerWidth - r.width;
+      const maxY = window.innerHeight - r.height;
+      const x = Math.min(Math.max(ox + e.clientX - sx, 0), Math.max(maxX, 0));
+      const y = Math.min(Math.max(oy + e.clientY - sy, 0), Math.max(maxY, 0));
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
       el.style.right = 'auto';
     });
-    window.addEventListener('mouseup', () => { dragging = false; });
+    window.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      handle.classList.remove('em-dragging');
+    });
   }
 
   function setVisible(v) {
